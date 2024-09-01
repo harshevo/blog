@@ -2,7 +2,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from blog.auth.route import router as auth_router
+from dotenv import load_dotenv
 import uvicorn
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 

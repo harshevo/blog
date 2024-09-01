@@ -1,14 +1,43 @@
+import uuid
+import enum
+import sqlalchemy as sa
+from sqlalchemy import Date, Enum as SQLAlchemyEnum, func, DateTime
 from pydantic import BaseModel
-from sqlalchemy import Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import ForeignKey, Integer, String
+import sqlalchemy
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from uvicorn import server
 
 from db.base import Base
 
+class PowerRole(enum.Enum):
+    USER = "user"
+    AUTHOR = "author"
+    ADMIN = "admin"
+
 class User(Base):
     __tablename__ = "users"
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String, unique=True, nullable = False) 
-    password_hash: Mapped[str] = mapped_column(String, unique = True, nullable = False)
-    role: Mapped[str] = mapped_column(String, default='user')
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key=True, server_default=func.uuid_generate_v4())
+    fullname: Mapped[str] = mapped_column(sa.String, nullable=False)
+    username: Mapped[str] = mapped_column(sa.String, unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(sa.String, unique=True, nullable = False) 
+    password_hash: Mapped[str] = mapped_column(sa.String, unique = True, nullable = False)
+    profile_picture_url: Mapped[str] = mapped_column(sa.String, nullable=True)
+    bio_txt: Mapped[str] = mapped_column(sa.String, nullable=True)
+    role: Mapped[SQLAlchemyEnum] = mapped_column(SQLAlchemyEnum(PowerRole), nullable=False, default=PowerRole.USER)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
+    refresh_tokens = relationship('RefreshToken', back_populates='user')
+
+
+class RefreshToken(Base):
+    __tablename__='refresh_tokens'
+    id: Mapped[uuid.UUID] = mapped_column(sa.UUID, primary_key = True, server_default=func.uuid_generate_v4())
+    token: Mapped[str] = mapped_column(sa.String, nullable = False, unique = True)
+    user_id: Mapped[uuid.UUID] = mapped_column(sa.UUID, ForeignKey('users.id'), nullable=False)
+    created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
+    updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+    user = relationship('User', back_populates='refresh_tokens')
+    
