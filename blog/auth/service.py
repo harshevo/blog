@@ -5,11 +5,15 @@ from starlette.status import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER_ERRO
 from blog.auth.schemas import UserRegister
 from blog.utils.cloudinary import upload_image
 from blog.utils.fileuploader import upload_file
+from blog.utils.jwt_util import generate_access_token
 from blog.utils.pw_hash import Hasher
 from db import get_db
 from .schemas import UserRegister
 from .model import User
+from .schemas import UserLogin
+from fastapi import Response
 
+#Register
 async def create_user(user: UserRegister,profile_picture: UploadFile, db = get_db):
     stmt = select(User.email).where(User.email == user.email)
     result = await db.execute(stmt)
@@ -42,8 +46,31 @@ async def create_user(user: UserRegister,profile_picture: UploadFile, db = get_d
         profile_picture_url = profile_picture_url,
         bio_txt = user.bio_txt
     )
-    
+
     await db.execute(insert_stmt)
     await db.commit()
     
     return user;
+
+#Login
+async def login_user(user: UserLogin, response: Response, db = get_db):
+    stmt = select(User).where(User.email == user.email)
+    result = await db.execute(stmt)
+    existing_user = result.scalars().first()
+    print(existing_user)
+
+    if(existing_user is None):
+        return HTTPException(status_code=400, detail="User does not exist, please register to continue")
+
+    isPasswordCorrect = Hasher.verify_password(user.password, existing_user.password_hash)
+
+    if(isPasswordCorrect == False):
+        return HTTPException(status_code=HTTP_400_BAD_REQUEST, detail="Password is incorrect")
+
+    accessToken = generate_access_token(str(existing_user.id))
+
+    return response.set_cookie(key="access_token", value=str(accessToken))
+
+
+
+
