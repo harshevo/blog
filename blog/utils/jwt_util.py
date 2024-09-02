@@ -1,8 +1,9 @@
 import os
 import time
-from dotenv import load_dotenv
-from typing import Optional, Union, Any
+from fastapi import HTTPException
 import jwt
+from dotenv import load_dotenv
+from typing import Optional, Dict, Any
 
 load_dotenv()
 
@@ -22,8 +23,11 @@ def generate_access_token(user_id: str) -> Optional[str]:
         print(f"cannot generate access token: {e}")
         return None
 
-def verify_token(token: str):
+def verify_token(token: str) -> Dict[str, Any]:
     decoded_token = jwt.decode(token, "secret", algorithms=[ALGORITHM])
-    return decoded_token if decoded_token["expires"] >= time.time() else None
 
+    if not isinstance(decoded_token, dict):
+        raise HTTPException(status_code=400, detail="Invalid Token Structure")
+
+    return decoded_token
 

@@ -1,17 +1,10 @@
-from cloudinary.uploader import UPLOAD_LARGE_CHUNK_SIZE, upload, upload_image
-from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
-from fastapi.background import P
+from fastapi import APIRouter, Depends, File, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 from db import get_db
-from ..utils.cloudinary import upload_image 
-from ..utils.fileuploader import upload_file 
 from .schemas import UserLogin, UserRegister
-import os
-
 from .schemas import UserRegister
-from .service import create_user, login_user
-# from auth.model import User
+from .service import create_user, login_user, get_current_user
+
 router = APIRouter()
 
 @router.post("/register")
@@ -22,6 +15,9 @@ async def register_user(user: UserRegister = Depends(UserRegister.as_form),image
 async def login(user: UserLogin, response: Response, db: AsyncSession = Depends(get_db)):
     return await login_user(user, response, db)
 
+@router.get("/user")
+async def get_user(request: Request, db: AsyncSession = Depends(get_db)):
+    return await get_current_user(request, db)
 # @router.post("/upload")
 # async def handle_upload(image: UploadFile):
 #     try:

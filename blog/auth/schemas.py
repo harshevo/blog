@@ -1,5 +1,4 @@
-import enum
-from fastapi import UploadFile, Form
+from fastapi import Form
 from pydantic import BaseModel, EmailStr
 
 class UserRegister(BaseModel):

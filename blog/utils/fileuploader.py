@@ -1,8 +1,6 @@
+import os
 from datetime import datetime
 from fastapi import File, UploadFile, HTTPException
-import os
-
-from starlette.types import HTTPExceptionHandler
 
 UPLOAD_DIR = "images"
 
