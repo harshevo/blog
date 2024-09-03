@@ -1,8 +1,9 @@
 import uuid
 import enum
 import sqlalchemy as sa
-from sqlalchemy import Enum as SQLAlchemyEnum, func, DateTime
+from sqlalchemy import BOOLEAN, Boolean, Enum as SQLAlchemyEnum, func, DateTime
 from sqlalchemy import ForeignKey
+import sqlalchemy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from db.base import Base
 
@@ -21,6 +22,7 @@ class User(Base):
     profile_picture_url: Mapped[str] = mapped_column(sa.String, nullable=True)
     bio_txt: Mapped[str] = mapped_column(sa.String, nullable=True)
     role: Mapped[SQLAlchemyEnum] = mapped_column(SQLAlchemyEnum(PowerRole), nullable=False, default=PowerRole.USER)
+    is_verified: Mapped[Boolean] = mapped_column(Boolean, nullable = False, default=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
     updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     refresh_tokens = relationship('RefreshToken', back_populates='user')
