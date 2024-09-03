@@ -1,13 +1,10 @@
 import uuid
 import enum
 import sqlalchemy as sa
-from sqlalchemy import Date, Enum as SQLAlchemyEnum, func, DateTime
-from pydantic import BaseModel
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import BOOLEAN, Boolean, Enum as SQLAlchemyEnum, func, DateTime
+from sqlalchemy import ForeignKey
 import sqlalchemy
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from uvicorn import server
-
 from db.base import Base
 
 class PowerRole(enum.Enum):
@@ -25,11 +22,10 @@ class User(Base):
     profile_picture_url: Mapped[str] = mapped_column(sa.String, nullable=True)
     bio_txt: Mapped[str] = mapped_column(sa.String, nullable=True)
     role: Mapped[SQLAlchemyEnum] = mapped_column(SQLAlchemyEnum(PowerRole), nullable=False, default=PowerRole.USER)
+    is_verified: Mapped[Boolean] = mapped_column(Boolean, nullable = False, default=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
     updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-
     refresh_tokens = relationship('RefreshToken', back_populates='user')
-
 
 class RefreshToken(Base):
     __tablename__='refresh_tokens'
@@ -38,6 +34,5 @@ class RefreshToken(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(sa.UUID, ForeignKey('users.id'), nullable=False)
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
     updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-
     user = relationship('User', back_populates='refresh_tokens')
     
