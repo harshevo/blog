@@ -1,7 +1,7 @@
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import select, insert, update
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_401_UNAUTHORIZED
-from blog.auth.crud import check_verification, get_current_user_by_email, get_current_user_by_username
+from blog.auth.crud import check_verification, get_current_user_by_email_or_username
 from blog.auth.schemas import UserRegister
 from blog.utils.cloudinary import upload_image
 from blog.utils.email_verification import send_email_background
@@ -22,9 +22,11 @@ async def create_user(
     db = get_db
  ):
     if(
-        (await get_current_user_by_email(user.email,db))  
-        or 
-        (await get_current_user_by_username(user.username,db))
+        await get_current_user_by_email_or_username(
+            user.email,
+            user.username,
+            db
+        )
     ):
         return HTTPException(
             HTTP_404_NOT_FOUND,
@@ -80,7 +82,10 @@ async def login_user(
     result = await db.execute(stmt)
     existing_user = result.scalars().first()
     if(not existing_user):
-        return HTTPException(status_code=400, detail="User does not exist, please register to continue")
+        return HTTPException(
+            status_code=400,
+            detail="User does not exist, please register to continue"
+        )
 
     if((await check_verification(user.email, db)) == False):
             return HTTPException(
@@ -94,7 +99,10 @@ async def login_user(
             detail="Password is incorrect"
         )
     accessToken = local_jwt.generate_access_token(str(existing_user.id))
-    return response.set_cookie(key="access_token", value=str(accessToken))
+    return response.set_cookie(
+        key="access_token",
+        value=str(accessToken)
+    )
 
 
 #verify email
@@ -111,9 +119,10 @@ async def verify_user_email(token: str, db = get_db):
     result = await db.execute(stmt)
     print(result)
     if(result.rowcount == 0):
-        raise HTTPException(status_code=HTTP_404_NOT_FOUND,
-                            detail="user not found"
-                        )
+        raise HTTPException(
+            status_code=HTTP_404_NOT_FOUND,
+            detail="user not found"
+        )
     await db.commit()
 
     return {
