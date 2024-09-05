@@ -1,7 +1,10 @@
+from threading import local
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
-from blog.auth.crud import get_all_users
+from urllib3 import request
+from blog.auth.crud import delete_current_user, get_all_users
 from blog.auth.middlewares import is_authorized
+from blog.utils.jwt_util import local_jwt
 from db import get_db
 from .schemas import UserLogin, UserRegister
 from .schemas import UserRegister
@@ -25,6 +28,30 @@ async def login(
     db: AsyncSession = Depends(get_db)
 ):
     return await login_user(user, response, db)
+
+@router.post("/logout")
+async def logout_user(
+        request: Request,
+        response: Response,
+        dep=Depends(is_authorized)
+): 
+    response.delete_cookie("access_token")
+    return {"sucess": "200"}
+
+@router.delete("/user")
+async def delete_user(
+        request: Request,
+        response: Response,
+        dep=Depends(is_authorized),
+        db: AsyncSession = Depends(get_db)
+):
+    token = request.cookies.get("access_token")
+    decoded_token = local_jwt.verify_token(str(token))
+    user_id = decoded_token.get("user_id")
+    await delete_current_user(str(user_id), db)
+    response.delete_cookie("access_token")
+    return {"success": "200"}
+
 
 @router.get("/verify-email/{token_email}")
 async def verify_email(
