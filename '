@@ -1,9 +1,7 @@
-from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import Depends,  Request, HTTPException, status
 from jose import JWTError
 from sqlalchemy import select
-from starlette.status import HTTP_200_OK
 from .model import User, PowerRole as Role
 from db import get_db
 from ..utils.jwt_util import local_jwt
@@ -44,10 +42,11 @@ async def is_authorized(
   stmt = select(User.role).where(User.id == user_id)
   result = await db.execute(stmt)
   user_role = result.scalar_one_or_none()
+  print(user_role)
   if(user_role is not  Role.SUPER_USER):
     raise HTTPException(
       status_code=status.HTTP_401_UNAUTHORIZED,
       detail="UnAuthorized"
     )
 
-  return 
+  return status.HTTP_200_OK

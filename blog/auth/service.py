@@ -71,7 +71,7 @@ async def create_user(
     endpoint_verify = f"127.0.0.1:8000/auth/verify-email/{token_email}"
     await send_email_background(background_tasks, "Blogify", user.email, endpoint_verify)
     await db.commit()
-    return user;
+    return {"message":"registration complete,email has been sent, please verify your email"}
 
 
 #Login

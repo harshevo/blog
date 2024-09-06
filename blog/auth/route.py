@@ -3,7 +3,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from urllib3 import request
 from blog.auth.crud import delete_current_user, get_all_users
-from blog.auth.middlewares import is_authorized
+from blog.auth.middlewares import is_authenticated, is_authorized
 from blog.utils.jwt_util import local_jwt
 from db import get_db
 from .schemas import UserLogin, UserRegister
@@ -21,7 +21,7 @@ async def register_user(
 ):
     return await create_user(background_tasks,user, image,  db)
 
-@router.post("/login")
+@router.post("/users/token")
 async def login(
     background_tasks: BackgroundTasks,
     user: UserLogin,
@@ -34,7 +34,7 @@ async def login(
 async def logout_user(
         request: Request,
         response: Response,
-        dep=Depends(is_authorized)
+        dep=Depends(is_authenticated)
 ): 
     response.delete_cookie("access_token")
     return {"sucess": "200"}
@@ -43,7 +43,7 @@ async def logout_user(
 async def delete_user(
         request: Request,
         response: Response,
-        dep=Depends(is_authorized),
+        dep=Depends(is_authenticated),
         db: AsyncSession = Depends(get_db)
 ):
     token = request.cookies.get("access_token")
@@ -63,10 +63,15 @@ async def verify_email(
 @router.get("/users")
 async def get_users(
         request: Request,
-        dependencies = Depends(is_authorized),
+        user_id = Depends(is_authenticated),
+        dep = Depends(is_authorized),
         db:AsyncSession = Depends(get_db)
 ): return await get_all_users(db) 
 
     
+@router.get("/")
+async def test_user(request: Request,
+                    user_id = Depends(is_authenticated), db: AsyncSession = Depends(get_db)):
+    return request.state.user_id
     
 
