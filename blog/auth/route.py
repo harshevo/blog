@@ -23,11 +23,12 @@ async def register_user(
 
 @router.post("/login")
 async def login(
+    background_tasks: BackgroundTasks,
     user: UserLogin,
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
-    return await login_user(user, response, db)
+    return await login_user(background_tasks, user, response, db)
 
 @router.post("/logout")
 async def logout_user(
@@ -65,7 +66,7 @@ async def get_users(
         dependencies = Depends(is_authorized),
         db:AsyncSession = Depends(get_db)
 ): return await get_all_users(db) 
-    
 
+    
     
 

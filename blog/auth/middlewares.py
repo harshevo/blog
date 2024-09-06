@@ -4,6 +4,7 @@ from jose import JWTError
 from db import get_db
 from ..utils.jwt_util import local_jwt
 from .crud import get_user_by_id
+from blog.posts.schemas import PostCreate
 
 async def is_authorized(
         request: Request,
@@ -27,3 +28,4 @@ async def is_authorized(
     if(user is None):
        return credentials_exception
 
+    return user_id
