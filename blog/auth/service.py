@@ -1,5 +1,7 @@
+from threading import local
 from fastapi import HTTPException, UploadFile
 from sqlalchemy import select, insert, update
+from starlette.background import BackgroundTask
 from starlette.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND, HTTP_500_INTERNAL_SERVER_ERROR, HTTP_401_UNAUTHORIZED
 from blog.auth.crud import check_verification, get_current_user_by_email_or_username
 from blog.auth.schemas import UserRegister
@@ -74,6 +76,7 @@ async def create_user(
 
 #Login
 async def login_user(
+    background_task: BackgroundTasks,
     user: UserLogin,
     response: Response,
     db = get_db
@@ -88,10 +91,20 @@ async def login_user(
         )
 
     if((await check_verification(user.email, db)) == False):
-            return HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED,
-            detail="User is not verified, please verify your email"
+        token_email = local_jwt.generate_token_with_email(user.email)
+        endpoint_verify = f"127.0.0.1:8000/auth/verify-email/{token_email}"
+        await send_email_background(
+            background_task,
+            "Blogify",
+            user.email,
+            endpoint_verify
         )
+        return HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="User is not verified, please verify your email,verification email is sent to your email"
+        )
+
+
     isPasswordCorrect = Hasher.verify_password(user.password, existing_user.password_hash)
     if(isPasswordCorrect == False):
         return HTTPException(
@@ -121,7 +134,7 @@ async def verify_user_email(token: str, db = get_db):
     if(result.rowcount == 0):
         raise HTTPException(
             status_code=HTTP_404_NOT_FOUND,
-            detail="user not found"
+            detail="user not found 'or' verification token has expired"
         )
     await db.commit()
 
