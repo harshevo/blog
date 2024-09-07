@@ -9,8 +9,7 @@ from db.base import Base
 
 class PowerRole(enum.Enum):
     USER = "user"
-    AUTHOR = "author"
-    ADMIN = "admin"
+    SUPER_USER  = "super_user"
 
 class User(Base):
     __tablename__ = "users"
