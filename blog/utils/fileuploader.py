@@ -21,9 +21,3 @@ async def upload_file(
         raise HTTPException(status_code=500, detail = f"Failed to save the file: {str(e)}")
     return file_path
 
-
-
-
-
-    
-        
