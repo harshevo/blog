@@ -1,6 +1,6 @@
 from datetime import UTC, datetime, timedelta
 import time
-import jwt
+from jose import jwt
 import os
 from fastapi import HTTPException
 from dotenv import load_dotenv

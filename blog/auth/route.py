@@ -63,8 +63,8 @@ async def verify_email(
 @router.get("/users")
 async def get_users(
         request: Request,
-        user_id = Depends(is_authenticated),
-        dep = Depends(is_authorized),
+        # user_id = Depends(is_authenticated),
+        user_id = Depends(is_authorized),
         db:AsyncSession = Depends(get_db)
 ): return await get_all_users(db) 
 
