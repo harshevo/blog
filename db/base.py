@@ -41,7 +41,7 @@ class utcnow(expression.FunctionElement):
 def pg_utcnow(element, compiler, **kw):
     return "TIMEZONE('utc', CURRENT_TIMESTAMP)"
 
-
+#TODO: this not working look into it
 class CreatedUpdatedMixin:
     """Adds created_at, updated_at columns to a model"""
 

@@ -8,11 +8,9 @@ from .crud import get_user_by_id
 from ..utils.jwt_util import local_jwt
 from db import get_db
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 async def get_current_user(       # get_current_user
     request: Request,
-    token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> str:
     credentials_exception = HTTPException(
@@ -22,6 +20,9 @@ async def get_current_user(       # get_current_user
     )
     
     try:
+        token = request.cookies.get("access_token")
+        if not token:
+            raise credentials_exception
         decoded_token = local_jwt.verify_token(token)
         user_id: str = decoded_token.get("user_id")
         if user_id is None:
@@ -39,7 +40,6 @@ async def get_current_user(       # get_current_user
 
 async def get_current_super_admin(        # get_current_super_admin
     request: Request,
-    token: str = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db)
 ) -> str:
     credentials_exception = HTTPException(
@@ -49,6 +49,9 @@ async def get_current_super_admin(        # get_current_super_admin
     )
     
     try:
+        token = request.cookies.get("access_token")
+        if not token:
+            raise credentials_exception
         decoded_token = local_jwt.verify_token(token)
         user_id: str = decoded_token.get("user_id")
         if user_id is None:
@@ -60,6 +63,11 @@ async def get_current_super_admin(        # get_current_super_admin
     result = await db.execute(stmt)
     user_role = result.scalar_one_or_none()
     if user_role is not Role.SUPER_USER:
-        raise credentials_exception
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    request.state.user_id = user_id
 
     return user_id
