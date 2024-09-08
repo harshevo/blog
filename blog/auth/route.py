@@ -1,5 +1,5 @@
 from threading import local
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Request, Response, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, File, Request, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from urllib3 import request
 from blog.auth.crud import delete_current_user, get_all_users
@@ -32,9 +32,9 @@ async def login(
 
 @router.post("/logout")
 async def logout_user(
-        request: Request,
-        response: Response,
-        dep=Depends(get_current_user)
+    request: Request,
+    response: Response,
+    dep = Depends(get_current_user)
 ): 
     response.delete_cookie("access_token")
     return {"sucess": "200"}
@@ -43,7 +43,7 @@ async def logout_user(
 async def delete_user(
         request: Request,
         response: Response,
-        dep=Depends(get_current_user),
+        dep = Depends(get_current_user),
         db: AsyncSession = Depends(get_db)
 ):
     token = request.cookies.get("access_token")
@@ -68,9 +68,12 @@ async def get_users(
 ): return await get_all_users(db)
 
     
-@router.get("/")
+@router.get("/test-user")
 async def test_user(request: Request,
                     user_id = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return request.state.user_id
     
-
+@router.get("/test-super-admin")
+async def test_super_admin(request: Request,
+                    user_id = Depends(get_current_super_admin), db: AsyncSession = Depends(get_db)):
+    return request.state.user_id

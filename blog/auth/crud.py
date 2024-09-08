@@ -1,13 +1,15 @@
+import uuid
 from fastapi import HTTPException
 from sqlalchemy import delete, or_, select, or_
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_400_BAD_REQUEST
-from db import get_db
+from db import get_db     # remving this line will cause circular import error
 from .model import User
 
 async def get_current_user_by_email_or_username(
-        email: str | None,
-        username: str | None,
-        db = get_db
+   email: str | None,
+   username: str | None,
+   db: AsyncSession
 ):
     stmt = select(User.username).where(
      or_(
@@ -23,8 +25,8 @@ async def get_current_user_by_email_or_username(
 
 
 async def get_user_by_id(
-    user_id : str,
-    db = get_db,
+   user_id : uuid.UUID,
+   db: AsyncSession,
  ):
     stmt = select(User.username).where(User.id == user_id)
     result = await db.execute(stmt)
@@ -34,7 +36,7 @@ async def get_user_by_id(
     return current_user
 
 async def get_all_users(
-      db = get_db
+   db: AsyncSession
 ):
    stmt = select(User)
    result = await db.execute(stmt)
@@ -48,8 +50,8 @@ async def get_all_users(
    } for user in users]
 
 async def check_verification(
-      email,
-      db = get_db
+   email: str,
+   db: AsyncSession
 ):
    stmt = select(User.is_verified).where(User.email == email)
    result = await db.execute(stmt)
@@ -57,7 +59,10 @@ async def check_verification(
    return is_verified
 
 
-async def delete_current_user(user_id: str, db = get_db):
+async def delete_current_user(
+   user_id: uuid.UUID, 
+   db: AsyncSession
+):
    print(user_id)
    try:
       stmt = delete(User).where(User.id == user_id)

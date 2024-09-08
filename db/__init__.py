@@ -27,6 +27,8 @@ from . import models  # type: ignore
 # else:
 #     echo = False
 
+#TODO: Import db url from env
+
 engine = create_async_engine("postgresql+asyncpg://postgres:postgres@localhost:5432/postgres", echo=True, json_serializer=_custom_json_serializer)
 Session = async_sessionmaker(engine, expire_on_commit=False)
 
