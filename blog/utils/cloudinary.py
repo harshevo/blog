@@ -16,7 +16,11 @@ cloudinary.config(
 
 async def upload_image(local_file_path):
     try:
-        upload_result = cloudinary.uploader.upload(local_file_path)
+        upload_result = cloudinary.uploader.upload(
+                    local_file_path,
+                    use_filename = True,
+                    uinque_filename = True,
+                )
         file_url = upload_result.get("secure_url")
         if(file_url):
             os.remove(local_file_path)

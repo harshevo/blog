@@ -9,6 +9,24 @@ from sqlalchemy import select, update, exists, delete, func
 from ..utils.fileuploader import upload_file as upload_file_local
 from ..utils.cloudinary import upload_image, delete_image_from_cloudinary
 
+def set_values(values: dict, List: list):
+    for row in values:
+        post = row.Posts
+        post_dict = {
+            "id": str(post.id),
+            "title": post.title,
+            "author_id": str(post.author_id),
+            "image_url": post.image_url,
+            "slug": post.slug,
+            "summary": post.summary,
+            "status": post.status.value,
+            "published_at": post.published_at.isoformat() if post.published_at else None,
+            "created_at": post.created_at.isoformat(),
+            "updated_at": post.updated_at.isoformat(),
+            "total_likes": row.total_likes,
+            "total_views": row.total_views
+        }
+        List.append(post_dict)
 
 async def create_blog(
         blog: PostCreate,
@@ -247,3 +265,5 @@ async def set_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error while updating status: {str(e)}"
         )
+
+

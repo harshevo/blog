@@ -26,3 +26,8 @@ class BlogResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     
+
+class Like(BaseModel):
+    post_id: uuid.UUID
+    
+
