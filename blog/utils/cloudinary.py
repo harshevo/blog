@@ -27,3 +27,17 @@ async def upload_image(local_file_path):
             detail=f"Error uploading images: {e}"
         )
 
+async def delete_image_from_cloudinary(image_url):
+    try:
+        public_id = "/".join(image_url.split("/")[-1:]).split(".")[0]
+        result = cloudinary.uploader.destroy(public_id)
+        if result.get('result') == 'ok':
+            print(f"Image deleted successfully: {public_id}")
+        else:
+            print(f"Failed to delete image: {public_id}")
+            raise Exception("Image deletion failed")
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting image from cloudinary: {str(e)}"
+        )
