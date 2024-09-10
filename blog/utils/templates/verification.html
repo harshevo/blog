@@ -1,44 +1,123 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Account Activation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activate Your Account - {{ app_name }}</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+        
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Roboto', Arial, sans-serif;
+            line-height: 1.6;
             color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .email-wrapper {
+            width: 100%;
+            background-color: #f4f4f4;
+            padding: 20px 0;
         }
         .email-container {
             width: 100%;
             max-width: 600px;
             margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .email-header {
+            background-color: #007BFF;
+            padding: 30px;
+            text-align: center;
         }
         .logo {
             max-width: 150px;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .email-content {
+            padding: 40px 30px;
+        }
+        h1 {
+            color: #ffffff;
+            font-size: 28px;
+            margin: 0;
+            font-weight: 700;
+        }
+        h2 {
+            color: #007BFF;
+            font-size: 24px;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 20px;
         }
         .button {
-            color: #fff;
+            display: inline-block;
             background-color: #007BFF;
-            border-color: #007BFF;
-            border-radius: .25rem;
+            color: #ffffff;
             text-decoration: none;
-            padding: .375rem .75rem;
-            font-size: 1rem;
-            line-height: 1.5;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-weight: 700;
+            text-align: center;
+            transition: background-color 0.3s ease;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+        .secondary-link {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        .secondary-link:hover {
+            text-decoration: underline;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        @media only screen and (max-width: 600px) {
+            .email-content {
+                padding: 30px 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="email-container">
-        <h1>Welcome to {{ app_name }}!</h1>
-        <p>Dear {{ name }},</p>
-        <p>Thank you for signing up. Please activate your account by clicking the link below:</p>
-        <p>
-            <a href="{{ activate_url }}" class="button">Activate Account</a>
-        </p>
-        <p>If the button above doesn't work, please copy and paste the following URL into your browser:</p>
-        <p><a href="{{ activate_url }}">{{ activate_url }}</a></p>
-        <p>Thank you for choosing us!</p>
-        <p>Best Regards,<br>{{ app_name }}</p>
+    <div class="email-wrapper">
+        <div class="email-container">
+            <div class="email-header">
+                <img src="{{ logo_url }}" alt="{{ app_name }} Logo" class="logo">
+                <h1>Welcome to {{ app_name }}!</h1>
+            </div>
+            <div class="email-content">
+                <h2>Activate Your Account</h2>
+                <p>Dear {{ name }},</p>
+                <p>Thank you for joining {{ app_name }}! We're excited to have you on board. To get started, please activate your account by clicking the button below:</p>
+                <p style="text-align: center;">
+                    <a href="{{ activate_url }}" class="button">Activate Your Account</a>
+                </p>
+                <p>If the button doesn't work, you can also copy and paste this link into your browser:</p>
+                <p><a href="{{ activate_url }}" class="secondary-link">{{ activate_url }}</a></p>
+                <p>This link will expire in 24 hours for security reasons. If you need a new activation link, please visit our website and request a new one.</p>
+                <p>If you didn't create an account with {{ app_name }}, please disregard this email or contact our support team.</p>
+            </div>
+            <div class="footer">
+                <p>&copy; {{ current_year }} {{ app_name }}. All rights reserved.</p>
+                <p>
+                    <a href="{{ privacy_policy_url }}" class="secondary-link">Privacy Policy</a> | 
+                    <a href="{{ terms_of_service_url }}" class="secondary-link">Terms of Service</a>
+                </p>
+            </div>
+        </div>
     </div>
 </body>
 </html>

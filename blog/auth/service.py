@@ -1,4 +1,5 @@
 from threading import local
+from logger_config import logger
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select, insert, update
 from starlette.background import BackgroundTask
@@ -65,68 +66,9 @@ async def create_user(
     )
 
     await db.execute(insert_stmt)
-    email = user.email
-    token_email = local_jwt.generate_token_with_email(email)
-    #need to change the host url
-    endpoint_verify = f"http://127.0.0.1:8000/auth/verify-email/{token_email}"
-    data = {
-        'app_name': "blogify",
-        'activate_url': endpoint_verify
-    }
-    subject = f"Account Verification - blogify"
-    await send_email_background(
-        background_tasks,
-        [user.email],
-        subject=subject,
-        context=data, 
-        template_name="verification.html"
-    )
+    await _send_verification_email(background_tasks, user.email)
     await db.commit()
     return {"message":"registration complete,email has been sent, please verify your email"}
-
-
-#Login
-# async def login_user(
-#     background_task: BackgroundTasks,
-#     user: UserLogin,
-#     response: Response,
-#     db: AsyncSession
-#  ):
-#     stmt = select(User).where(User.email == user.email)
-#     result = await db.execute(stmt)
-#     existing_user = result.scalars().first()
-#     if(not existing_user):
-#         return HTTPException(
-#             status_code=400,
-#             detail="User does not exist, please register to continue"
-#         )
-
-#     if((await check_verification(user.email, db)) == False):
-#         token_email = local_jwt.generate_token_with_email(user.email)
-#         endpoint_verify = f"127.0.0.1:9000/auth/verify-email/{token_email}"  #TODO: Change to env
-#         await send_email_background(
-#             background_task,
-#             "Blogify",
-#             user.email,
-#             endpoint_verify
-#         )
-#         return HTTPException(
-#             status_code=status.HTTP_401_UNAUTHORIZED,
-#             detail="User is not verified, please verify your email,verification email is sent to your email"
-#         )
-
-
-#     isPasswordCorrect = Hasher.verify_password(user.password, existing_user.password_hash)
-#     if(isPasswordCorrect == False):
-#         return HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail="Password is incorrect"
-#         )
-#     accessToken = local_jwt.generate_access_token(str(existing_user.id))
-#     return response.set_cookie(
-#         key="access_token",
-#         value=str(accessToken)
-#     )
 
 
 async def login_user(     #[TODO]verificatio mail isn't being sent to email, i dont know why, need fix
@@ -136,29 +78,30 @@ async def login_user(     #[TODO]verificatio mail isn't being sent to email, i d
     db: AsyncSession
 ) -> Response:
     try:
-        existing_user = await db.execute(select(User.id).where(User.email == user.email))
-        existing_user = existing_user.scalar_one_or_none()
-        if not existing_user:
-            raise HTTPException(
+        existing_user = await db.execute(select(User.id, User.password_hash).where(User.email == user.email))
+        user_data = existing_user.first()
+        if not user_data:
+            return HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found. Please register to continue."
             )
+        user_id, hashed_password = user_data
 
         if not await check_verification(user.email, db):
             print(f"email: {user.email}")
             await _send_verification_email(background_tasks, user.email)
-            raise HTTPException(
+            return HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User is not verified. A new verification email has been sent."
             )
 
-        if not Hasher.verify_password(user.password, existing_user.password_hash):
-            raise HTTPException(
+        if not Hasher.verify_password(user.password, hashed_password):
+            return HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid credentials."
             )
 
-        access_token = local_jwt.generate_access_token(str(existing_user.id))
+        access_token = local_jwt.generate_access_token(str(user_id))
         response.set_cookie(
             key="access_token",
             value=access_token,
@@ -177,21 +120,30 @@ async def login_user(     #[TODO]verificatio mail isn't being sent to email, i d
             detail="An unexpected error occurred. Please try again later."
         )
 
-async def _send_verification_email(background_tasks: BackgroundTasks, email: str):
-    token_email = local_jwt.generate_token_with_email(email)
-    endpoint_verify = f"http://127.0.0.1:9000/auth/verify-email/{token_email}"
-    data = {
-        'app_name': "blogify",
-        'activate_url': endpoint_verify
-    }
-    subject = f"Account Verification - blogify"
-    await send_email_background(
-        background_tasks,
-        [email],
-        subject=subject,
-        context=data, 
-        template_name="verification.html"
-    )
+async def _send_verification_email(background_tasks: BackgroundTasks, email: str): #TODO: Also pass username into mail to use as Dear username, in template
+    try:
+        token_email = local_jwt.generate_token_with_email(email)
+        
+        endpoint_verify = f"http://127.0.0.1:9000/auth/verify-email/{token_email}"
+        data = {
+            'app_name': "blogify",
+            'activate_url': endpoint_verify
+        }
+        subject = f"Account Verification - blogify"
+        
+        await send_email_background(
+            background_tasks,
+            [email],
+            subject=subject,
+            context=data, 
+            template_name="verification.html"
+        )
+    except Exception as e:
+        logger.error(f"Error sending verification email to {email}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to send verification email: {str(e)}"
+        )
 
 
 #verify email
