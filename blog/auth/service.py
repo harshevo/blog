@@ -68,8 +68,19 @@ async def create_user(
     email = user.email
     token_email = local_jwt.generate_token_with_email(email)
     #need to change the host url
-    endpoint_verify = f"127.0.0.1:8000/auth/verify-email/{token_email}"
-    await send_email_background(background_tasks, "Blogify", user.email, endpoint_verify)
+    endpoint_verify = f"http://127.0.0.1:8000/auth/verify-email/{token_email}"
+    data = {
+        'app_name': "blogify",
+        'activate_url': endpoint_verify
+    }
+    subject = f"Account Verification - blogify"
+    await send_email_background(
+        background_tasks,
+        [user.email],
+        subject=subject,
+        context=data, 
+        template_name="verification.html"
+    )
     await db.commit()
     return {"message":"registration complete,email has been sent, please verify your email"}
 
@@ -118,16 +129,15 @@ async def create_user(
 #     )
 
 
-async def login_user(
+async def login_user(     #[TODO]verificatio mail isn't being sent to email, i dont know why, need fix
     background_tasks: BackgroundTasks,
     user: UserLogin,
     response: Response,
     db: AsyncSession
 ) -> Response:
     try:
-        existing_user = await db.execute(select(User).where(User.email == user.email))
-        existing_user = existing_user.scalars().first()
-        
+        existing_user = await db.execute(select(User.id).where(User.email == user.email))
+        existing_user = existing_user.scalar_one_or_none()
         if not existing_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -135,6 +145,7 @@ async def login_user(
             )
 
         if not await check_verification(user.email, db):
+            print(f"email: {user.email}")
             await _send_verification_email(background_tasks, user.email)
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -168,12 +179,18 @@ async def login_user(
 
 async def _send_verification_email(background_tasks: BackgroundTasks, email: str):
     token_email = local_jwt.generate_token_with_email(email)
-    endpoint_verify = f"127.0.0.1:9000/auth/verify-email/{token_email}"
+    endpoint_verify = f"http://127.0.0.1:9000/auth/verify-email/{token_email}"
+    data = {
+        'app_name': "blogify",
+        'activate_url': endpoint_verify
+    }
+    subject = f"Account Verification - blogify"
     await send_email_background(
         background_tasks,
-        "Blogify",
-        email,
-        endpoint_verify
+        [email],
+        subject=subject,
+        context=data, 
+        template_name="verification.html"
     )
 
 
