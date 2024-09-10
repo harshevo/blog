@@ -19,9 +19,11 @@ class BlogResponse(BaseModel):
     id: uuid.UUID
     title: str
     content: dict
+    slug: str | None
     image_url: str | None
     summary: str
     status: statusEnum
+    total_likes: int
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime

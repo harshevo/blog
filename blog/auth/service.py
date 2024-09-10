@@ -115,6 +115,7 @@ async def login_user(     #[TODO]verificatio mail isn't being sent to email, i d
     except HTTPException as http_ex:
         raise http_ex
     except Exception as e:
+        logger.error(f"Error logging in user: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="An unexpected error occurred. Please try again later."
