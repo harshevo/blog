@@ -91,7 +91,8 @@ from .schemas import CommentCreate, CommentUpdate
 import uuid
 from typing import List, Optional
 from datetime import datetime
-
+from logger_config import logger
+from fastapi import HTTPException
 #TODO: do error handling
 
 async def create_comment(blog_id: uuid.UUID, comment: CommentCreate, user_id: uuid.UUID, db: AsyncSession):
@@ -149,12 +150,16 @@ async def delete_comment(comment_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSes
     return False
 
 async def get_comment_replies(comment_id: uuid.UUID, db: AsyncSession, skip: int = 0, limit: int = 20):
-    query = (
-        select(Comment)
+    try:
+        query = (
+            select(Comment)
         .where(Comment.parent_id == comment_id)
         .options(selectinload(Comment.replies))
         .offset(skip)
         .limit(limit)
     )
-    result = await db.execute(query)
-    return result.scalars().all()
+        result = await db.execute(query)
+        return result.scalars().all()
+    except Exception as e:
+        logger.error(f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

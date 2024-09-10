@@ -50,7 +50,7 @@ async def like_blog(
         db.add(update_stmt)
         await db.commit()
 
-        return {"Message": "Post Liked"}
+        return {"Message": "Blog Liked"}
     except Exception as e:
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

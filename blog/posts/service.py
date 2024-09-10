@@ -3,6 +3,7 @@ import datetime
 from blog.posts.schemas import PostCreate
 from blog.posts import schemas as blog_schemas
 from .model import Blog, BlogImage, statusEnum
+from ..likes.model import BlogLikes
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select, update, exists, delete, func
@@ -11,20 +12,11 @@ from ..utils.cloudinary import upload_image, delete_image_from_cloudinary
 
 def set_values(values: dict, List: list):
     for row in values:
-        post = row.Posts
+        post = row.Blog
         post_dict = {
-            "id": str(post.id),
-            "title": post.title,
-            "author_id": str(post.author_id),
-            "image_url": post.image_url,
-            "slug": post.slug,
-            "summary": post.summary,
-            "status": post.status.value,
-            "published_at": post.published_at.isoformat() if post.published_at else None,
-            "created_at": post.created_at.isoformat(),
-            "updated_at": post.updated_at.isoformat(),
+            **post.__dict__,
             "total_likes": row.total_likes,
-            "total_views": row.total_views
+            "image_url": row.image_url
         }
         List.append(post_dict)
 
@@ -55,36 +47,76 @@ async def create_blog(
         )
 
 
+# async def get_all_blogs(
+#     filter: statusEnum,
+#     db: AsyncSession
+# ):
+#     try:
+#         # stmt = (
+#         #     select(
+#         #         Blog, 
+#         #         func.coalesce(BlogImage.image_url, None).label('image_url'),    #Used func.coalesce() to handle NULL values for image_url
+#         #         func.count(BlogLikes.id).label('total_likes')
+#         #     )
+#         #     .outerjoin(
+#         #         BlogImage, 
+#         #         Blog.id == BlogImage.blog_id
+#         #     )
+#         #     .outerjoin(
+#         #         BlogLikes,
+#         #         Blog.id == BlogLikes.blog_id
+#         #     )
+#         #     .where(Blog.status == filter)
+#         #     .group_by(Blog.id)
+#         # )
+#         stmt = (
+#             select(
+#                 Blog, 
+#                 func.coalesce(BlogImage.image_url, None).label('image_url'),
+#                 func.count(BlogLikes.id).label('total_likes')
+#             )
+#             .outerjoin(BlogImage, Blog.id == BlogImage.blog_id)
+#             .outerjoin(BlogLikes, Blog.id == BlogLikes.blog_id)
+#             .where(Blog.status == filter)
+#             .group_by(Blog.id, BlogImage.image_url)
+#         )
+#         result = await db.execute(stmt)
+#         return [
+#             blog_schemas.BlogResponse(
+#                 # **{k: v for k, v in blog.__dict__.items() if not k.startswith('_')},
+#                 **blog.__dict__,
+#                 image_url=image_url,
+#                 total_likes=total_likes
+#             )
+#             for blog, image_url, total_likes in result
+#         ]
+#     except Exception as e:
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail=f"An error occurred while fetching blogs: {str(e)}"
+#         )
 async def get_all_blogs(
     filter: statusEnum,
     db: AsyncSession
 ):
-    try:
-        stmt = (
-            select(
-                Blog, 
-                func.coalesce(BlogImage.image_url, None).label('image_url')    #Used func.coalesce() to handle NULL values for image_url
-            )
-            .outerjoin(
-                BlogImage, 
-                Blog.id == BlogImage.blog_id
-            )
-            .where(Blog.status == filter)
-            .order_by(Blog.created_at.desc())
+    stmt = (select(
+            Blog,
+            func.count(BlogLikes.id).label("total_likes"),
+            func.coalesce(BlogImage.image_url, None).label('image_url')
+        ).outerjoin(
+            BlogLikes, Blog.id == BlogLikes.blog_id
         )
-        result = await db.execute(stmt)
-        return [
-            blog_schemas.BlogResponse(
-                **{k: v for k, v in blog.__dict__.items() if not k.startswith('_')},   #just extracting values of dict in key(k), vlaue(v) pair same as **blog.__dict__
-                image_url=image_url
-            )
-            for blog, image_url in result
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while fetching blogs: {str(e)}"
+        .outerjoin(
+            BlogImage, Blog.id == BlogImage.blog_id
         )
+        .where(Blog.status == filter)
+        .group_by(Blog.id, BlogImage.image_url)
+    )
+
+    result = await db.execute(stmt)
+    blog_with_likes = []
+    set_values(result, blog_with_likes)
+    return blog_with_likes
 
 
 async def get_blog_by_id(
