@@ -14,8 +14,8 @@ from typing import Optional, List
 class CommentBase(BaseModel):
     content: str
 
-class CommentCreate(CommentBase):
-    parent_id: Optional[uuid.UUID] = None
+# class CommentCreate(CommentBase):
+#     parent_id: Optional[uuid.UUID] = None
 
 class CommentUpdate(CommentBase):
     pass

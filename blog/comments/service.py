@@ -86,6 +86,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 from .model import Comment
 from .schemas import CommentCreate, CommentUpdate
 import uuid
@@ -96,60 +97,106 @@ from fastapi import HTTPException
 #TODO: do error handling
 
 async def create_comment(blog_id: uuid.UUID, comment: CommentCreate, user_id: uuid.UUID, db: AsyncSession):
-    db_comment = Comment(
-        content=comment.content,
-        blog_id=blog_id,
-        user_id=user_id,
-        parent_id=comment.parent_id,  # parent id means comment parent id which comment it is connected with
-        created_at=datetime.now(),
-        updated_at=datetime.now()
-    )
-    db.add(db_comment)
-    await db.commit()
-    return {"message": "Comment created successfully"}
+    try:
+        db_comment = Comment(
+            content=comment.content,
+            blog_id=blog_id,
+            user_id=user_id,
+            parent_id=comment.parent_id,  # parent id means comment parent id which comment it is connected with
+            created_at=datetime.now(),
+            updated_at=datetime.now()
+        )
+        db.add(db_comment)
+        await db.commit()
+        return {"message": "Comment created successfully"}
+    except Exception as e:
+        logger.error(f"Error while Creating Comemtn: {str(e)}")
+        return HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error while creating user {e}"
+                )
+
 
 
 async def get_comments_by_blog(blog_id: uuid.UUID, db: AsyncSession, skip: int = 0, limit: int = 20):
-    query = (
-        select(Comment)
-        .where(Comment.blog_id == blog_id, Comment.parent_id == None)
-        .options(selectinload(Comment.replies))
-        .order_by(Comment.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(query)
-    return result.scalars().all()
+    try:
+        query = (
+            select(Comment)
+            .where(Comment.blog_id == blog_id, Comment.parent_id == None)
+            .options(selectinload(Comment.replies))
+            .order_by(Comment.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return result.scalars().all()
+    except Exception as e:
+        logger.error(f"Error while fetching comments by blogid: {str(e)}")
+        return HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error while fetching comments by blogid: {str(e)}"
+                )
 
 async def get_comment_by_id(comment_id: uuid.UUID, db: AsyncSession):
-    query = (
-        select(Comment)
-        .where(Comment.id == comment_id)
-        .options(selectinload(Comment.replies))
-    )
-    result = await db.execute(query)
-    return result.scalar_one_or_none()
+    try:
+        query = (
+            select(Comment)
+            .where(Comment.id == comment_id)
+            .options(selectinload(Comment.replies))
+        )
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
+    except Exception as e:
+        logger.error((f"Error while fetching comments by comment_id {str(e)}"))
+        return HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error while fetching comments by comment_id {str(e)}"
+                )
 
-async def update_comment(comment_id: uuid.UUID, comment_update: CommentUpdate, user_id: uuid.UUID, db: AsyncSession):
-    db_comment = await get_comment_by_id(comment_id, db)
-    if db_comment and str(db_comment.user_id) == str(user_id):
-        for key, value in comment_update.dict(exclude_unset=True).items():
-            setattr(db_comment, key, value)
-        db_comment.updated_at = datetime.now()
-        await db.commit()
-        await db.refresh(db_comment)
-        return db_comment
-    return None
+async def update_comment(
+        comment_id: uuid.UUID,
+        comment_update: CommentUpdate,
+        user_id: uuid.UUID,
+        db: AsyncSession
+        ):
+    try:
+        db_comment = await get_comment_by_id(comment_id, db)
+        if db_comment and str(db_comment.user_id) == str(user_id):
+            for key, value in comment_update.dict(exclude_unset=True).items():
+                setattr(db_comment, key, value)
+            db_comment.updated_at = datetime.now()
+            await db.commit()
+            await db.refresh(db_comment)
+            return db_comment
+        return None
+    except Exception as e:
+        logger.error(f"Error While Updating Comment - {str(e)}")
+        return HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error While Updating Comment - {str(e)}"
+                )
 
 async def delete_comment(comment_id: uuid.UUID, user_id: uuid.UUID, db: AsyncSession) -> bool:
-    db_comment = await get_comment_by_id(comment_id, db)
-    if db_comment and str(db_comment.user_id) == str(user_id):
-        await db.delete(db_comment)
-        await db.commit()
-        return True
-    return False
+    try:
+        db_comment = await get_comment_by_id(comment_id, db)
+        if db_comment and str(db_comment.user_id) == str(user_id):
+            await db.delete(db_comment)
+            await db.commit()
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"Error deleting comment: {str(e)}")
+        raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error deleting comment: {str(e)}"
+                )
 
-async def get_comment_replies(comment_id: uuid.UUID, db: AsyncSession, skip: int = 0, limit: int = 20):
+async def get_comment_replies(
+        comment_id: uuid.UUID,
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 20
+        ):
     try:
         query = (
             select(Comment)

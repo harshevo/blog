@@ -34,7 +34,7 @@ async def upload_image(local_file_path):
 async def delete_image_from_cloudinary(image_url):
     try:
         public_id = "/".join(image_url.split("/")[-1:]).split(".")[0]
-        result = cloudinary.uploader.destroy(public_id)
+        result = cloudinary.uploader.destroy(public_id, invalidate=True)
         if result.get('result') == 'ok':
             print(f"Image deleted successfully: {public_id}")
         else:

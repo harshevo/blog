@@ -1,5 +1,7 @@
 import uuid
 import datetime
+import sqlalchemy
+from starlette.status import HTTP_500_INTERNAL_SERVER_ERROR
 from blog.posts.schemas import PostCreate
 from blog.posts import schemas as blog_schemas
 from .model import Blog, BlogImage, statusEnum
@@ -9,8 +11,9 @@ from fastapi import HTTPException, UploadFile, status
 from sqlalchemy import select, update, exists, delete, func
 from ..utils.fileuploader import upload_file as upload_file_local
 from ..utils.cloudinary import upload_image, delete_image_from_cloudinary
+from logger_config import logger
 
-def set_values(values: dict, List: list):
+def set_values(values, List):
     for row in values:
         post = row.Blog
         post_dict = {
@@ -41,6 +44,7 @@ async def create_blog(
         return {"message": "Blog created successfully"}
     except Exception as e:
         await db.rollback()
+        logger.error(f"Error While Creating Blog : {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create blog: {str(e)}"
@@ -96,55 +100,67 @@ async def create_blog(
 #             detail=f"An error occurred while fetching blogs: {str(e)}"
 #         )
 async def get_all_blogs(
-    filter: statusEnum,
-    db: AsyncSession
+    db: AsyncSession,
+    skip: int = 0,
+    limit: int = 20
 ):
-    stmt = (select(
-            Blog,
-            func.count(BlogLikes.id).label("total_likes"),
-            func.coalesce(BlogImage.image_url, None).label('image_url')
-        ).outerjoin(
-            BlogLikes, Blog.id == BlogLikes.blog_id
+    try:
+        stmt = (select(
+                Blog,
+                func.count(BlogLikes.id).label("total_likes"),
+                func.coalesce(BlogImage.image_url, None).label('image_url')
+            ).outerjoin(
+                BlogLikes, Blog.id == BlogLikes.blog_id
+            )
+            .outerjoin(
+                BlogImage, Blog.id == BlogImage.blog_id
+            )
+            .where(Blog.status == statusEnum.PUBLISHED)
+            .group_by(Blog.id, BlogImage.image_url)
+            .limit(limit)
+            .offset(skip)
         )
-        .outerjoin(
-            BlogImage, Blog.id == BlogImage.blog_id
-        )
-        .where(Blog.status == filter)
-        .group_by(Blog.id, BlogImage.image_url)
-    )
 
-    result = await db.execute(stmt)
-    blog_with_likes = []
-    set_values(result, blog_with_likes)
-    return blog_with_likes
+        result = await db.execute(stmt)
+        blog_with_likes = []
+        set_values(result, blog_with_likes)
+        return blog_with_likes
+    except Exception as e:
+        logger.error(f"Error Fetching Blogs: {str(e)}")
+        return HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error Fetching Blogs: {str(e)}"
+                )
+
 
 
 async def get_blog_by_id(
     blog_id: uuid.UUID,
     db: AsyncSession
-) -> blog_schemas.BlogResponse:
+) -> list[blog_schemas.BlogResponse]:
     try:    
-        stmt = (
-            select(Blog, BlogImage.image_url)
-            .outerjoin(BlogImage, Blog.id == BlogImage.blog_id)
-            .where(Blog.id == blog_id)
-        )
-        result = await db.execute(stmt)
-        blog, image_url = result.one_or_none()
-        
-        if not blog:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Blog not found"
+        stmt = (select(
+                Blog,
+                func.count(BlogLikes.id).label("total_likes"),
+                func.coalesce(BlogImage.image_url, None).label('image_url')
+            ).outerjoin(
+                BlogLikes, Blog.id == BlogLikes.blog_id
             )
-        
-        return blog_schemas.BlogResponse(
-            **blog.__dict__,
-            image_url=image_url
+            .outerjoin(
+                BlogImage, Blog.id == BlogImage.blog_id
+            )
+            .where(Blog.id == blog_id)
+            .group_by(Blog.id, BlogImage.image_url)
         )
+
+        result = await db.execute(stmt)
+        blog_with_likes = []
+        set_values(result, blog_with_likes)
+        return blog_with_likes
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error while fetching blog by blogId: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while fetching the blog: {str(e)}"
@@ -156,51 +172,50 @@ async def get_blogs_by_user(
     filter: statusEnum,
     db: AsyncSession
 ):
-    try:
-        stmt = (
-            select(
-                Blog, 
-                func.coalesce(BlogImage.image_url, None).label('image_url')    #Used func.coalesce() to handle NULL values for image_url
+    try:    
+        stmt = (select(
+                Blog,
+                func.count(BlogLikes.id).label("total_likes"),
+                func.coalesce(BlogImage.image_url, None).label('image_url')
+            ).outerjoin(
+                BlogLikes, Blog.id == BlogLikes.blog_id
             )
             .outerjoin(
-                BlogImage, 
-                Blog.id == BlogImage.blog_id
+                BlogImage, Blog.id == BlogImage.blog_id
             )
             .where(Blog.status == filter)
             .where(Blog.author_id == user_id)
-            .order_by(Blog.created_at.desc())
-        )
-        result = await db.execute(stmt)
-        return [
-            blog_schemas.BlogResponse(
-                **{k: v for k, v in blog.__dict__.items() if not k.startswith('_')},   #just extracting values of dict in key(k), vlaue(v) pair same as **blog.__dict__
-                image_url=image_url
-            )
-            for blog, image_url in result
-        ]
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"An error occurred while fetching User's blogs: {str(e)}"
+            .group_by(Blog.id, BlogImage.image_url)
         )
 
+        result = await db.execute(stmt)
+        blog_with_likes = []
+        set_values(result, blog_with_likes)
+        return blog_with_likes
+    except Exception as e:
+        logger.error(f"Error fetching blogs by user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while fetching the blog: {str(e)}"
+        )
 
 async def update_blog(
     blog_id: uuid.UUID,
     body: blog_schemas.UpdateBlog,
     db: AsyncSession
 ):
-    stmt = await db.execute(select(exists().where(Blog.id == blog_id)))
-    result = stmt.scalar_one_or_none()
-    if not result:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
     try:
+        stmt = await db.execute(select(exists().where(Blog.id == blog_id)))
+        result = stmt.scalar_one_or_none()
+        if not result:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Blog not found")
         stmt = update(Blog).where(Blog.id == blog_id).values(body.dict())
         await db.execute(stmt)
         await db.commit()
         return {"message": "Updated Successfully"}
     except Exception as e:
         await db.rollback()
+        logger.error(f"Error Updating Blog: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"Error while updating blog: {blog_id}"
@@ -212,12 +227,29 @@ async def update_blog_image(
     image: UploadFile,
     db: AsyncSession
 ):
-    # delete the associated image from cloudinary
-    # delete the associated image from the database
-    # upload the new image to cloudinary
-    # save the image url to the database with the blog_id
-    pass
-        
+    try:
+        result = await db.execute(select(BlogImage.image_url).where(BlogImage.blog_id == blog_id))
+        existing_image_url = result.scalar_one_or_none()
+
+        if not existing_image_url:
+            return HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Image for blog_id does not exists"
+                )
+       
+        await delete_image_from_cloudinary(existing_image_url)
+
+        image_local_path = await upload_file_local(image)
+        image_cloudinary_url = await upload_image(image_local_path)
+
+        stmt = update(BlogImage).where(BlogImage.blog_id == blog_id).values(image_url = image_cloudinary_url)
+        await db.execute(stmt)
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error Updating Blog Image : {str(e)}")
+        return HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error Updating Image - {e}"
+             )
 
 
 async def delete_blog(
@@ -255,7 +287,7 @@ async def delete_blog(
         return {"message": "Deleted Successfully"}
     except Exception as e:
         await db.rollback()
-        # TODO: log this error
+        logger.error(f"Error while deleting blog: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
             detail=f"Error while deleting blog: {str(e)}"
@@ -276,6 +308,7 @@ async def upload_blog_image(
         await db.refresh(url)
         return url
     except Exception as e:
+        logger.error(f"Error while Uploading Blog Image: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error while uploading image: {str(e)}"
@@ -293,8 +326,9 @@ async def set_status(
         return {"message": "Status updated successfully"}
     except Exception as e:
         await db.rollback()
+        logger.error(f"Error while Updating Status: {str(e)}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error while updating status: {str(e)}"
         )
 

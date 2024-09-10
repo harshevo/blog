@@ -24,51 +24,58 @@ async def create_user(
     profile_picture: UploadFile,
     db: AsyncSession
  ):
-    if(
-        await get_current_user_by_email_or_username(
-            user.email,
-            user.username,
-            db
+    try:
+        if(
+            await get_current_user_by_email_or_username(
+                user.email,
+                user.username,
+                db
+            )
+        ):
+            return HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User with username or email already exists"
+            )
+
+        profile_picture_cloudinary_url = None
+        if(profile_picture):
+            profile_picture_path = await upload_file(profile_picture)
+            if(profile_picture_path is None):
+                return HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error Uploading Profile Picture while creating user"
+                )
+            profile_picture_url = await upload_image(profile_picture_path)
+            if(profile_picture_url is None):
+                return HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error uploading profile picture to cloudinary"
+                )
+            profile_picture_cloudinary_url = profile_picture_url
+
+        hashed_password = ""
+        if(user.password):
+            hashed_password = Hasher.get_password_hash(user.password)
+
+        insert_stmt = insert(User).values(
+            fullname = user.fullname,
+            username = user.username,
+            email = user.email,
+            password_hash = hashed_password,
+            profile_picture_url = profile_picture_cloudinary_url,
+            bio_txt = user.bio_txt
         )
-    ):
+
+        await db.execute(insert_stmt)
+        await _send_verification_email(background_tasks, user.email)
+        await db.commit()
+        return {"message":"registration complete,email has been sent, please verify your email"}
+    except Exception as e:
+        logger.error(f"Error logging in user: {str(e)}")
         return HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User with username or email already exists"
-        )
-
-    profile_picture_cloudinary_url = None
-    if(profile_picture):
-        profile_picture_path = await upload_file(profile_picture)
-        if(profile_picture_path is None):
-            return HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error Uploading Profile Picture while creating user"
-            )
-        profile_picture_url = await upload_image(profile_picture_path)
-        if(profile_picture_url is None):
-            return HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error uploading profile picture to cloudinary"
-            )
-        profile_picture_cloudinary_url = profile_picture_url
-
-    hashed_password = ""
-    if(user.password):
-        hashed_password = Hasher.get_password_hash(user.password)
-
-    insert_stmt = insert(User).values(
-        fullname = user.fullname,
-        username = user.username,
-        email = user.email,
-        password_hash = hashed_password,
-        profile_picture_url = profile_picture_cloudinary_url,
-        bio_txt = user.bio_txt
-    )
-
-    await db.execute(insert_stmt)
-    await _send_verification_email(background_tasks, user.email)
-    await db.commit()
-    return {"message":"registration complete,email has been sent, please verify your email"}
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Error Creating User"
+                )
 
 
 async def login_user(     #[TODO]verificatio mail isn't being sent to email, i dont know why, need fix
@@ -149,27 +156,36 @@ async def _send_verification_email(background_tasks: BackgroundTasks, email: str
 
 #verify email
 async def verify_user_email(token: str, db: AsyncSession):
-    decoded_token = local_jwt.verify_token(token)
-    user_email = decoded_token.get("email")
-    
-    stmt = (
-        update(User)
-            .where(User.email == user_email)
-            .values(is_verified = True)
-            .execution_options(synchronize_session="fetch")
-        )
-    result = await db.execute(stmt)
-    print(result)
-    if(result.rowcount == 0):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="user not found 'or' verification token has expired"
-        )
-    await db.commit()
+    try:
+        decoded_token = local_jwt.verify_token(token)
+        user_email = decoded_token.get("email")
+        
+        stmt = (
+            update(User)
+                .where(User.email == user_email)
+                .values(is_verified = True)
+                .execution_options(synchronize_session="fetch")
+            )
+        result = await db.execute(stmt)
+        print(result)
+        if(result.rowcount == 0):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="user not found 'or' verification token has expired"
+            )
+        await db.commit()
 
-    return {
-        "status": "success" 
-    }
+        return {
+            "status": "success" 
+        }
+    except Exception as e:
+        logger.error(f"Error logging in user: {str(e)}")
+        return HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Error while verifying Email- {e}"
+                )
+
+
 
 
 
