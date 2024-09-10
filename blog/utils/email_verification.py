@@ -26,22 +26,24 @@ conf = ConnectionConfig(
     MAIL_SSL_TLS=False,
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True,
+    TEMPLATE_FOLDER = Path(__file__).parent / 'templates'
 )
 
 async def send_email_background(
         background_tasks: BackgroundTasks,
+        recipients: list,
         subject: str,
-        email_to: str,
-        body: str
+        context: dict,
+        template_name: str
 ):
     message = MessageSchema(
         subject=subject,
-        recipients=[email_to],
-        body=body,
-        subtype=MessageType('html'),
+        recipients=recipients,
+        template_body=context,
+        subtype=MessageType.html,
     )
     fm = FastMail(conf)
     background_tasks.add_task(
-       fm.send_message, message, template_name='email.html')
+       fm.send_message, message, template_name=template_name)
 
 

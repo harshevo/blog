@@ -41,10 +41,10 @@ async def logout_user(
 
 @router.delete("/user")
 async def delete_user(
-        request: Request,
-        response: Response,
-        dep = Depends(get_current_user),
-        db: AsyncSession = Depends(get_db)
+    request: Request,
+    response: Response,
+    dep = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     token = request.cookies.get("access_token")
     decoded_token = local_jwt.verify_token(str(token))
@@ -56,7 +56,8 @@ async def delete_user(
 
 @router.get("/verify-email/{token_email}")
 async def verify_email(
-    token_email: str, db:AsyncSession = Depends(get_db)
+    token_email: str,
+    db:AsyncSession = Depends(get_db)
 ):
     return await verify_user_email(token_email, db)
 
@@ -65,15 +66,22 @@ async def get_users(
         request: Request,
         user_id = Depends(get_current_super_admin),
         db:AsyncSession = Depends(get_db)   
-): return await get_all_users(db)
+): 
+    return await get_all_users(db)
 
     
 @router.get("/test-user")
-async def test_user(request: Request,
-                    user_id = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def test_user(
+    request: Request,
+    user_id = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     return request.state.user_id
     
 @router.get("/test-super-admin")
-async def test_super_admin(request: Request,
-                    user_id = Depends(get_current_super_admin), db: AsyncSession = Depends(get_db)):
+async def test_super_admin(
+    request: Request,
+    user_id = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db)
+):
     return request.state.user_id

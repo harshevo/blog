@@ -2,7 +2,7 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy import delete, or_, select, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette.status import HTTP_400_BAD_REQUEST
+from starlette import status
 from db import get_db     # remving this line will cause circular import error
 from .model import User
 
@@ -53,10 +53,16 @@ async def check_verification(
    email: str,
    db: AsyncSession
 ):
-   stmt = select(User.is_verified).where(User.email == email)
-   result = await db.execute(stmt)
-   is_verified = result.scalar_one_or_none()
-   return is_verified
+   try:
+      stmt = select(User.is_verified).where(User.email == email)
+      result = await db.execute(stmt)
+      is_verified = result.scalar_one_or_none()
+      return is_verified
+   except:
+      return HTTPException(
+         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+         detail="Error While checking verification  - {e}"
+      )
 
 
 async def delete_current_user(
@@ -70,6 +76,6 @@ async def delete_current_user(
       await db.commit()
    except:
       return HTTPException(
-         status_code=HTTP_400_BAD_REQUEST,
+         status_code=status.HTTP_400_BAD_REQUEST,
          detail="Unable to delete User"
       )
