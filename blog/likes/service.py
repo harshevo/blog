@@ -43,7 +43,7 @@ async def like_blog(
 
 
         update_stmt = BlogLikes(
-                    post_id = like.blog_id,
+                    blog_id = like.blog_id,
                     user_id = current_user_id
                 )
 

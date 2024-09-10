@@ -9,7 +9,7 @@ from blog.likes.schemas import Like
 
 router = APIRouter()
 
-@router.get("/like")
+@router.post("/like")
 async def like(
         like: Like,
         curr_user_id = Depends(get_current_user),

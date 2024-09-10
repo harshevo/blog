@@ -1,16 +1,16 @@
-import logging
+from logger_config import setup_logger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from blog.auth.route import router as auth_router
 from blog.posts.route import router as blog_router
 from blog.likes.route import router as like_router
-from blog.comments.route import comment_create, router as comment_router
+from blog.comments.route import router as comment_router
 from dotenv import load_dotenv
 import uvicorn
 
 load_dotenv()
 
-logger = logging.getLogger(__name__)
+logger = setup_logger("BlogProject", debug=True) 
 
 app = FastAPI()
 
