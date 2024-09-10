@@ -6,6 +6,7 @@ from db import get_db
 from sqlalchemy import select, delete, and_
 from fastapi import HTTPException
 from ..posts.model import Blog
+from logger_config import logger
 
 async def like_blog(
         like: Like,
@@ -39,7 +40,7 @@ async def like_blog(
                         )))
             await db.execute(delete_stmt)
             await db.commit()
-            return {"Message": "Post DisLiked"}
+            return {"Message": "Blog DisLiked"}
 
 
         update_stmt = BlogLikes(
@@ -52,6 +53,7 @@ async def like_blog(
 
         return {"Message": "Blog Liked"}
     except Exception as e:
+        logger.error(f"Error Processing Like : {str(e)}") 
         return HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error Processing Like - {e}"

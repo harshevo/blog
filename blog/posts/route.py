@@ -5,7 +5,7 @@ from blog.posts import service as post_service
 from blog.posts import schemas as blog_schemas
 from ..auth.middlewares import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
-from fastapi import APIRouter, Depends, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 
 
 router  = APIRouter()
@@ -33,10 +33,11 @@ async def upload_blog_image(
 # Get All Blogs
 @router.get("/blog")
 async def get_blogs(  
-    filter: statusEnum,
-db: AsyncSession = Depends(get_db)
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
 ) -> list[blog_schemas.BlogResponse]:  
-    return await post_service.get_all_blogs(filter, db)
+    return await post_service.get_all_blogs(db, skip, limit)
 
 
 # Get All Blogs by User
