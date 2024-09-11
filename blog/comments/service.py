@@ -210,3 +210,22 @@ async def get_comment_replies(
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
+
+
+async def delete_comment_super_user(
+    comment_id: uuid.UUID,
+    db: AsyncSession
+) -> bool:
+    try:
+        db_comment = await get_comment_by_id(comment_id, db)
+        if db_comment:
+            await db.delete(db_comment)
+            await db.commit()
+            return True
+        return False
+    except Exception as e:
+        logger.error(f"Error deleting comment: {str(e)}")
+        raise HTTPException(
+                status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error deleting comment: {str(e)}"
+                )
