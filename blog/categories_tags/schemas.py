@@ -25,6 +25,9 @@ class Category(CategoryBase):
     class Config:
         orm_mode = True
 
+class CategoryWithUserID(Category):
+    user_id: uuid.UUID
+
 class CategoryWithUser(Category):
     user: "User"
 

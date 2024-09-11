@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select, exists, and_
 from sqlalchemy.orm import selectinload
 from blog.posts import model as blog_model
+from ..posts.model import Blog
 
 async def create_category(db: AsyncSession, category: schemas.CategoryCreate, user_id: uuid.UUID):
     db_category = models.Category(**category.dict(), user_id=user_id)
@@ -25,7 +26,11 @@ async def get_category(db: AsyncSession, category_id: uuid.UUID):
     return result.scalar()
 
 async def update_category(db: AsyncSession, category_id: uuid.UUID, category: schemas.CategoryUpdate, user_id: uuid.UUID):
-    db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    category_stmt_exec = await db.execute(
+            select(models.Category).
+            where(models.Category.id == category_id))
+    db_category = category_stmt_exec.scalar_one_or_none()
+
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     if db_category.user_id != user_id:
@@ -37,7 +42,11 @@ async def update_category(db: AsyncSession, category_id: uuid.UUID, category: sc
     return db_category
 
 async def delete_category(db: AsyncSession, category_id: uuid.UUID, user_id: uuid.UUID):
-    db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    category_stmt_exec = await db.execute(
+                select(models.Category)
+                .where(models.Category.id == category_id)
+            )
+    db_category = category_stmt_exec.scalar_one_or_none()
     if not db_category:
         raise HTTPException(status_code=404, detail="Category not found")
     if db_category.user_id != user_id:
@@ -47,7 +56,15 @@ async def delete_category(db: AsyncSession, category_id: uuid.UUID, user_id: uui
     return True
 
 async def get_all_categories(db: AsyncSession, skip: int = 0, limit: int = 100):
-    return db.query(models.Category).offset(skip).limit(limit).all()
+    category_stmt= (
+            select(models.Category)
+            .limit(limit)
+            .offset(skip)
+            )
+    result = await db.execute(category_stmt)
+    categories = result.scalars().all()
+    return categories
+
 
 async def admin_update_category(db: AsyncSession, category_id: uuid.UUID, category: schemas.CategoryUpdate):
     db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
@@ -85,7 +102,12 @@ async def get_tag(db: AsyncSession, tag_id: uuid.UUID):
     return result.scalar()
 
 async def update_tag(db: AsyncSession, tag_id: uuid.UUID, tag: schemas.TagUpdate, user_id: uuid.UUID):
-    db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
+    # db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
+    stmt_tag = await db.execute(
+                select(models.Tag)
+                .where(models.Tag.id == tag_id)
+            )
+    db_tag = stmt_tag.scalars().first()
     if not db_tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     if db_tag.user_id != user_id:
@@ -97,7 +119,12 @@ async def update_tag(db: AsyncSession, tag_id: uuid.UUID, tag: schemas.TagUpdate
     return db_tag
 
 async def delete_tag(db: AsyncSession, tag_id: uuid.UUID, user_id: uuid.UUID):
-    db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
+    # db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
+    stmt_tag = await db.execute(
+                select(models.Tag)
+                .where(models.Tag.id == tag_id)
+            )
+    db_tag = stmt_tag.scalars().first()
     if not db_tag:
         raise HTTPException(status_code=404, detail="Tag not found")
     if db_tag.user_id != user_id:
@@ -107,21 +134,42 @@ async def delete_tag(db: AsyncSession, tag_id: uuid.UUID, user_id: uuid.UUID):
     return True
 
 async def add_category_to_blog(db: AsyncSession, blog_id: uuid.UUID, category_id: uuid.UUID, user_id: uuid.UUID):
-    blog = db.query(models.Blog).filter(models.Blog.id == blog_id, models.Blog.user_id == user_id).first()
+    stmt_exec = await db.execute(
+            select(Blog)
+            .where(Blog.id == blog_id)
+            .where(Blog.author_id == user_id)
+            )
+
+    blog = stmt_exec.scalars().first()
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found or not authorized")
-    category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    stmt_category = await db.execute(
+                select(models.Category)
+                .where(models.Category.id == category_id)
+            )
+    category = stmt_category.scalars().first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
-    blog.categories.append(category)
+    blog.categories.append(category) #[TODO] Fix 
     await db.commit()
     return True
 
 async def remove_category_from_blog(db: AsyncSession, blog_id: uuid.UUID, category_id: uuid.UUID, user_id: uuid.UUID):
-    blog = db.query(models.Blog).filter(models.Blog.id == blog_id, models.Blog.user_id == user_id).first()
+    # blog = db.query(models.Blog).filter(models.Blog.id == blog_id, models.Blog.user_id == user_id).first()
+    stmt_blog = await db.execute(
+                select(Blog)
+                .where(Blog.id == blog_id)
+                .where(Blog.author_id == user_id)
+            )
+    blog = stmt_blog.scalars().first()
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found or not authorized")
-    category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    # category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    stmt_category = await db.execute(
+                select(models.Category)
+                .where(models.Category.id == category_id)
+            )
+    category = stmt_category.scalars().first()
     if not category:
         raise HTTPException(status_code=404, detail="Category not found")
     blog.categories.remove(category)
@@ -195,7 +243,12 @@ async def remove_tag_from_blog(db: AsyncSession, blog_id: uuid.UUID, tag_id: uui
 
 
 async def get_blog_categories(db: AsyncSession, blog_id: uuid.UUID):
-    blog = db.query(blog_model.Blog).filter(blog_model.Blog.id == blog_id).first()
+    # blog = db.query(blog_model.Blog).filter(blog_model.Blog.id == blog_id).first()
+    stmt_blog = await db.execute(
+                select(blog_model.Blog)
+                .where(blog_model.Blog.id == blog_id)
+            )
+    blog = stmt_blog.scalars().first()
     if not blog:
         raise HTTPException(status_code=404, detail="Blog not found")
     return blog.categories
