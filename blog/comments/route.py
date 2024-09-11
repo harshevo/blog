@@ -1,40 +1,34 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from blog.comments.schemas import CommentCreate
-from blog.comments.service import create_comment, get_comments_by_blog
-from db import get_db
-from ..auth.middlewares import get_current_user
-# router = APIRouter()
-
-# @router.get("/blogs/{blog_id}/comments")
-# async def get_comments(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
-#     return await get_comments_by_blog(blog_id, db)
-
-# @router.post("/blogs/{blog_id}/comments")     #Auth route can be accessed by our registered user only
-# async def comment_create(
-#     blog_id: uuid.UUID,
-#     comment: CommentCreate, 
-#     user_id = Depends(get_current_user), 
-#     db: AsyncSession = Depends(get_db)
-# ):
-#     return await create_comment(blog_id, comment, user_id, db)
-
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from blog.comments.schemas import CommentCreate, CommentUpdate, CommentResponse
 from blog.comments.service import (
     create_comment, 
     get_comments_by_blog, 
     get_comment_by_id, 
     update_comment, 
     delete_comment,
-    get_comment_replies
+    get_comment_replies,
+    delete_comment_super_user
 )
 from db import get_db
-from ..auth.middlewares import get_current_user
+from ..auth.middlewares import get_current_user, get_current_super_admin
+from sqlalchemy.ext.asyncio import AsyncSession
+from blog.comments.schemas import CommentCreate
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Query
+from blog.comments.schemas import CommentCreate, CommentUpdate
 
 router = APIRouter()
+
+###TODO: ADD Route for Super User to Delete Comment
+
+@router.get("/comments/{comment_id}/delete", status_code=204)
+async def delete_comment_route(
+    comment_id: uuid.UUID,
+    current_user = Depends(get_current_super_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    if not await delete_comment_super_user(comment_id, db):
+        raise HTTPException(status_code=404, detail="Comment not found")
+
 
 @router.get("/blogs/{blog_id}/comments")
 async def list_comments(

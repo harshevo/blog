@@ -253,7 +253,7 @@ async def remove_tag_from_blog(
     if not await service.remove_tag_from_blog(db, blog_id, tag_id, current_user):
         raise HTTPException(status_code=404, detail="Blog or Tag not found or not authorized")
 
-@router.get("/blogs/{blog_id}/categories", response_model=List[schemas.Category])
+@router.get("/blogs/{blog_id}/categories")
 async def get_blog_categories(blog_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """
     - Retrieves all categories associated with a specific blog post
