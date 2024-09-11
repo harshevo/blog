@@ -5,7 +5,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from db.base import Base
 from sqlalchemy.orm import backref
-# This Model is made by Chat-GPT 
 class Comment(Base):
     __tablename__ = "comments"
 
