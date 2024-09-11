@@ -25,6 +25,9 @@ class User(Base):
     created_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), nullable=False) 
     updated_at: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     refresh_tokens = relationship('RefreshToken', back_populates='user')
+    tags = relationship('Tag', back_populates='user')
+    categories = relationship('Category', back_populates='user')
+
 
 class RefreshToken(Base):
     __tablename__='refresh_tokens'
