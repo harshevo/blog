@@ -5,6 +5,7 @@ from typing import List
 from . import schemas
 from . import service as service
 from db import get_db
+from fastapi import Depends
 from blog.auth.middlewares import get_current_user, get_current_super_admin
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,7 +17,7 @@ router = APIRouter()
 async def create_category(
     category: schemas.CategoryCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Allows users to create new categories for organizing blog posts
@@ -52,7 +53,7 @@ async def update_category(
     category_id: uuid.UUID,
     category: schemas.CategoryUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user = Depends(get_current_user)
 ):
     """
     - Allows users to update their own categories
@@ -61,15 +62,15 @@ async def update_category(
     db_category =  await service.get_category(db, category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-    if db_category.user_id != current_user:
+    if db_category.user_id != uuid.UUID(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to update this category")
-    return  await service.update_category(db, category_id, category)
+    return  await service.update_category(db, category_id, category, uuid.UUID(current_user))
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_category(
     category_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user  = Depends(get_current_user)
 ):
     """
     - Allows users to delete their own categories
@@ -78,12 +79,12 @@ async def delete_category(
     db_category =  await service.get_category(db, category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-    if db_category.user_id != current_user:
+    if db_category.user_id != uuid.UUID(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to delete this category")
-    await service.delete_category(db, category_id)
+    await service.delete_category(db, category_id, uuid.UUID(current_user))
 
 # Super admin routes
-@router.get("/admin/categories/", response_model=List[schemas.CategoryWithUser])
+@router.get("/admin/categories/", response_model=List[schemas.CategoryWithUserID])
 async def list_all_categories(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=100),
@@ -101,7 +102,7 @@ async def admin_update_category(
     category_id: uuid.UUID,
     category: schemas.CategoryUpdate,
     db: AsyncSession = Depends(get_db),
-    current_admin: schemas.User = Depends(get_current_super_admin)
+    current_admin  = Depends(get_current_super_admin)
 ):
     """
     - Allows super admins to update any category
@@ -110,19 +111,19 @@ async def admin_update_category(
     db_category =  await service.get_category(db, category_id)
     if db_category is None:
         raise HTTPException(status_code=404, detail="Category not found")
-    return  await service.update_category(db, category_id, category)
+    return  await service.update_category(db, category_id, category, uuid.UUID(current_admin))
 
 @router.delete("/admin/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def admin_delete_category(
     category_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_admin: schemas.User = Depends(get_current_super_admin)
+    current_admin = Depends(get_current_super_admin)
 ):
     """
     - Allows super admins to delete any category
     - Used in the admin panel to remove inappropriate or obsolete categories
     """
-    if not  await service.delete_category(db, category_id):
+    if not  await service.delete_category(db, category_id, uuid.UUID(current_admin)):
         raise HTTPException(status_code=404, detail="Category not found")
 
 # Tag routes
@@ -130,7 +131,7 @@ async def admin_delete_category(
 async def create_tag(
     tag: schemas.TagCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Allows users to create new tags for labeling blog posts
@@ -166,7 +167,7 @@ async def update_tag(
     tag_id: uuid.UUID,
     tag: schemas.TagUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Allows users to update their own tags
@@ -175,15 +176,15 @@ async def update_tag(
     db_tag =  await service.get_tag(db, tag_id)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
-    if db_tag.user_id != current_user:
+    if db_tag.user_id != uuid.UUID(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to update this tag")
-    return  await service.update_tag(db, tag_id, tag)
+    return  await service.update_tag(db, tag_id, tag, uuid.UUID(current_user))
 
 @router.delete("/tags/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_tag(
     tag_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Allows users to delete their own tags
@@ -192,9 +193,9 @@ async def delete_tag(
     db_tag =  await service.get_tag(db, tag_id)
     if db_tag is None:
         raise HTTPException(status_code=404, detail="Tag not found")
-    if db_tag.user_id != current_user:
+    if db_tag.user_id != uuid.UUID(current_user):
         raise HTTPException(status_code=403, detail="Not authorized to delete this tag")
-    await service.delete_tag(db, tag_id)
+    await service.delete_tag(db, tag_id, uuid.UUID(current_user))
 
 # Post-related routes
 @router.post("/blogs/{blog_id}/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -202,21 +203,20 @@ async def add_category_to_blog(
     blog_id: uuid.UUID,
     category_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Assigns a category to a specific blog post
     - Used when creating or editing a blog post to categorize it
     """
-    if not  await service.add_category_to_blog(db, blog_id, category_id, current_user):
-        raise HTTPException(status_code=404, detail="Blog or Category not found or not authorized")
+    return await service.add_category_to_blog(db, blog_id, category_id, current_user)
 
 @router.delete("/blogs/{blog_id}/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_category_from_blog(
     blog_id: uuid.UUID,
     category_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Removes a category from a specific blog post
@@ -230,7 +230,7 @@ async def add_tag_to_blog(
     blog_id: uuid.UUID,
     tag_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Adds a tag to a specific blog post
@@ -244,7 +244,7 @@ async def remove_tag_from_blog(
     blog_id: uuid.UUID,
     tag_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user)
+    current_user= Depends(get_current_user)
 ):
     """
     - Removes a tag from a specific blog post
