@@ -29,6 +29,9 @@ class Blog(Base, CreatedUpdatedMixin):   #TODO:change tbl name to blogs
     likes = relationship("BlogLikes", back_populates="blog")
     views = relationship("BlogViews", back_populates="blog")
     images = relationship("BlogImage", back_populates="blog")
+    # tags = relationship("BlogTag", back_populates="blog")
+    tags = relationship("BlogTag", back_populates="blog", cascade="all, delete-orphan")
+    categories = relationship("BlogCategory", back_populates="blog")
 
 
 class BlogImage(Base):

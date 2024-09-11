@@ -85,18 +85,18 @@ async def login_user(     #[TODO]verificatio mail isn't being sent to email, i d
     db: AsyncSession
 ) -> Response:
     try:
-        existing_user = await db.execute(select(User.id, User.password_hash).where(User.email == user.email))
+        existing_user = await db.execute(select(User.id, User.fullname, User.password_hash).where(User.email == user.email))
         user_data = existing_user.first()
         if not user_data:
             return HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found. Please register to continue."
             )
-        user_id, hashed_password = user_data
+        user_id, fullname, hashed_password = user_data
 
         if not await check_verification(user.email, db):
             print(f"email: {user.email}")
-            await _send_verification_email(background_tasks, user.email)
+            await _send_verification_email(background_tasks, user.email, fullname)
             return HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User is not verified. A new verification email has been sent."
@@ -128,13 +128,14 @@ async def login_user(     #[TODO]verificatio mail isn't being sent to email, i d
             detail="An unexpected error occurred. Please try again later."
         )
 
-async def _send_verification_email(background_tasks: BackgroundTasks, email: str): #TODO: Also pass username into mail to use as Dear username, in template
+async def _send_verification_email(background_tasks: BackgroundTasks, email: str, fullname: str): #TODO: Also pass username into mail to use as Dear username, in template
     try:
         token_email = local_jwt.generate_token_with_email(email)
         
         endpoint_verify = f"http://127.0.0.1:9000/auth/verify-email/{token_email}"
         data = {
             'app_name': "blogify",
+            'name': fullname,
             'activate_url': endpoint_verify
         }
         subject = f"Account Verification - blogify"
