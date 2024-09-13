@@ -150,6 +150,7 @@ async def get_blog_by_id(
                 BlogImage, Blog.id == BlogImage.blog_id
             )
             .where(Blog.id == blog_id)
+            .where(Blog.status == statusEnum.PUBLISHED)
             .group_by(Blog.id, BlogImage.image_url)
         )
 

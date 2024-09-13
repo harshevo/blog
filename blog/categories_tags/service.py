@@ -87,7 +87,12 @@ async def get_all_categories(db: AsyncSession, skip: int = 0, limit: int = 100):
 
 
 async def admin_update_category(db: AsyncSession, category_id: uuid.UUID, category: schemas.CategoryUpdate):
-    db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    # db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    category_stmt = await db.execute(
+            select(models.Category)
+            .where(models.Category.id == category_id)
+            )
+    db_category = category_stmt.scalar_one_or_none()
     if not db_category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
     for key, value in category.dict(exclude_unset=True).items():
@@ -98,7 +103,11 @@ async def admin_update_category(db: AsyncSession, category_id: uuid.UUID, catego
 
 
 async def admin_delete_category(db: AsyncSession, category_id: uuid.UUID):
-    db_category = db.query(models.Category).filter(models.Category.id == category_id).first()
+    category_stmt = await db.execute(
+            select(models.Category)
+            .where(models.Category.id == category_id)
+            )
+    db_category = category_stmt.scalar_one_or_none()
     if not db_category:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
     await db.delete(db_category)
